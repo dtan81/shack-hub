@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SHACK HUB • KI5WTR</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=Space+Grotesk:wght@500;600&display=swap');
+    body { font-family: 'Inter', system-ui, sans-serif; }
+    .font-display { font-family: 'Space Grotesk', 'Inter', sans-serif; font-weight: 600; }
+    .futuristic-bg { background: radial-gradient(circle at center, #0a0a0f 0%, #050507 100%); }
+    .glass { background: rgba(255,255,255,0.03); backdrop-filter: blur(20px); border: 1px solid rgba(255,255,255,0.08); }
+    .section-header { font-size: 0.75rem; letter-spacing: 2px; font-weight: 600; }
+    .feed-frame { width: 100%; height: 100%; border: 0; background: #050507; pointer-events: none; transform-origin: top left; }
+    .feed-card.focused .feed-frame { pointer-events: auto; }
+    .feed-scale { overflow: hidden; height: 220px; position: relative; }
+    .feed-scale iframe { width: 1400px; height: 900px; transform: scale(0.28); }
+    .feed-card.focused .feed-scale { height: min(78vh, 820px); }
+    .feed-card.focused .feed-scale iframe { width: 100%; height: 100%; transform: none; }
+    .feed-card { cursor: pointer; transition: box-shadow 200ms ease, border-color 200ms ease; }
+    .feed-card:hover { border-color: rgba(34,211,238,0.35); }
+    .feed-card.focused { border-color: rgba(34,211,238,0.7); box-shadow: 0 0 40px rgba(34,211,238,0.12); cursor: default; }
+    .dot-live { width: 8px; height: 8px; border-radius: 9999px; background: #34d399; box-shadow: 0 0 8px #34d399; }
+    .dot-down { width: 8px; height: 8px; border-radius: 9999px; background: #fb7185; }
+  </style>
+</head>
+<body class="futuristic-bg text-zinc-200 min-h-screen">
+  <div class="border-b border-white/10 bg-black/40 backdrop-blur-xl sticky top-0 z-50">
+    <div class="max-w-screen-2xl mx-auto px-6 py-4 flex items-center justify-between gap-4">
+      <div class="flex items-center gap-3">
+        <div class="w-9 h-9 rounded-2xl bg-gradient-to-br from-cyan-400 to-purple-500 flex items-center justify-center">
+          <i class="fa-solid fa-layer-group text-black text-lg"></i>
+        </div>
+        <div>
+          <div class="font-display text-2xl tracking-tighter" id="hub-title">SHACK HUB</div>
+          <div class="text-[10px] text-zinc-500 -mt-1">KI5WTR • MULTI-NODE</div>
+        </div>
+      </div>
+      <div class="flex items-center gap-3 flex-wrap justify-end" id="host-pills"></div>
+    </div>
+  </div>
+  <div class="max-w-screen-2xl mx-auto px-6 pt-8 pb-12">
+    <div class="flex items-end justify-between mb-6">
+      <div>
+        <div class="text-xs tracking-[3px] text-cyan-400 font-medium mb-1">MISSION CONTROL • AGGREGATE</div>
+        <div class="font-display text-5xl tracking-tighter">NODE SELECT</div>
+      </div>
+      <button id="btn-grid" class="hidden px-4 py-2 rounded-2xl glass text-xs tracking-widest text-cyan-300">SHOW ALL</button>
+    </div>
+    <div id="feed-grid" class="grid grid-cols-1 lg:grid-cols-3 gap-6"></div>
+  </div>
+  <script>
+    let HOSTS = [], focused = null;
+    async function loadHosts() {
+      try {
+        const res = await fetch('hosts.json', { cache: 'no-store' });
+        const data = await res.json();
+        if (data.title) document.getElementById('hub-title').textContent = data.title;
+        HOSTS = data.hosts || [];
+      } catch (e) {
+        HOSTS = [];
+      }
+      render(); pingAll(); setInterval(pingAll, 8000);
+    }
+    function render() {
+      const grid = document.getElementById('feed-grid');
+      const pills = document.getElementById('host-pills');
+      const btnGrid = document.getElementById('btn-grid');
+      grid.className = focused ? 'grid grid-cols-1 gap-6' : 'grid grid-cols-1 lg:grid-cols-3 gap-6';
+      btnGrid.classList.toggle('hidden', !focused);
+      pills.innerHTML = HOSTS.map(h => `<button data-pill="${h.id}" class="px-3 py-1.5 rounded-2xl text-xs border ${focused===h.id?'border-cyan-400 text-cyan-300 bg-cyan-400/10':'border-white/10 text-zinc-400 bg-white/5'}">${h.name}</button>`).join('');
+      const list = focused ? HOSTS.filter(h => h.id === focused) : HOSTS;
+      grid.innerHTML = list.map(h => `
+        <div class="feed-card glass rounded-3xl p-4 border border-white/10 ${focused===h.id?'focused':''}" data-host="${h.id}">
+          <div class="flex items-center justify-between mb-3">
+            <div><div class="section-header text-zinc-400">${h.role||'NODE'}</div><div class="text-xl font-semibold tracking-tight">${h.name}</div></div>
+            <div class="flex items-center gap-2 text-xs text-zinc-500"><span class="dot-down" id="dot-${h.id}"></span><span id="stat-${h.id}">CHECKING</span></div>
+          </div>
+          <div class="feed-scale rounded-2xl border border-white/10 bg-black/40">
+            <iframe class="feed-frame" src="${h.url}" title="${h.name}" loading="lazy"></iframe>
+          </div>
+          <div class="mt-3 flex justify-between text-[10px] tracking-widest text-zinc-500"><span>${h.url}</span><span>${focused===h.id?'MAIN VIEW':'CLICK TO FOCUS'}</span></div>
+        </div>`).join('');
+      grid.querySelectorAll('.feed-card').forEach(card => card.addEventListener('click', ev => {
+        if (!ev.target.closest('iframe')) setFocus(card.getAttribute('data-host'));
+      }));
+      pills.querySelectorAll('button').forEach(btn => btn.addEventListener('click', () => setFocus(btn.getAttribute('data-pill'))));
+    }
+    function setFocus(id) { focused = (focused === id) ? null : id; render(); pingAll(); }
+    document.getElementById('btn-grid').addEventListener('click', () => { focused = null; render(); pingAll(); });
+    async function pingAll() {
+      HOSTS.forEach(async (h) => {
+        const dot = document.getElementById('dot-' + h.id);
+        const stat = document.getElementById('stat-' + h.id);
+        if (!dot || !stat) return;
+        try {
+          const ctrl = new AbortController();
+          const t = setTimeout(() => ctrl.abort(), 2500);
+          const res = await fetch('/ping/' + h.id, { signal: ctrl.signal, cache: 'no-store' });
+          clearTimeout(t);
+          if (!res.ok) throw new Error('bad');
+          const data = await res.json();
+          dot.className = 'dot-live';
+          stat.textContent = (data.system && data.system.cpu_percent != null) ? data.system.cpu_percent + '%' : 'LIVE';
+        } catch (e) { dot.className = 'dot-down'; stat.textContent = 'OFFLINE'; }
+      });
+    }
+    loadHosts();
+  </script>
+</body>
+</html>

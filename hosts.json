@@ -1,0 +1,8 @@
+{
+  "title": "SHACK HUB",
+  "hosts": [
+    { "id": "rackpi5",  "name": "RackPi5",  "role": "OpenClaw / Elmer", "url": "http://100.69.69.34:8080" },
+    { "id": "shackpi5", "name": "ShackPi5", "role": "Shack Pi 5",      "url": "http://100.88.79.18:8080/" },
+    { "id": "shackpi4", "name": "ShackPi4", "role": "Pi 4 8GB",        "url": "http://100.107.188.106:8082/" }
+  ]
+}
